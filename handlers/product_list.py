@@ -1,30 +1,17 @@
 from aiogram import Bot, Router, F
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
+from product import Product, ProductType, filter_by_brand, filter_by_type, get_brands
+
 router = Router()
-products = {
-    'liquids': {
-        'text': 'Жидкости',
-        'brands': [
-            {
-                'text': 'HOTSPOT',
-                'products': [
-                    'Малиновый куни',
-                    'Банановая сперма'
-                ]
-            }
-        ]
-    },
-    'h': {
-        'text': 'Одноразки'
-    }
-}
+products = [Product(ProductType.LIQUID, 'HOTSPOT', 'Малиноввй куни', 400)]
 
+product_type_names = {ProductType.LIQUID: 'Жидкости'}
 
-async def send_product_types(chat_id: int, bot: Bot, message: Message = None):
+async def send_product_types(chat_id: int, bot: Bot, message: Message | None = None):
     markup = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=products[i]['text'], callback_data=f'type/{i}')]
-        for i in products])
+        [InlineKeyboardButton(text=product_type_names[i], callback_data=f'type/{i}')]
+        for i in ProductType])
     text = 'Привет!\nВыбери тип товара'
 
     if message:
@@ -42,10 +29,10 @@ async def product_types_query(callback: CallbackQuery, bot: Bot):
 @router.callback_query(F.data.split('/')[0] == 'type')
 async def product_type_query(callback: CallbackQuery, bot: Bot):
     product_type = callback.data.split('/')[1]
-    brands = products[product_type]['brands']
+    brands = get_brands(products)
     markup = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=v['text'], callback_data=f'brand/{product_type}/{i}')]
-        for i, v in enumerate(brands)]
+        [InlineKeyboardButton(text=i, callback_data=f'brand/{product_type}/{i}')]
+        for i in brands]
             + [[InlineKeyboardButton(text='Назад', callback_data='types')]])
 
     await callback.message.edit_text('Выбери марку товара', reply_markup=markup)
@@ -56,10 +43,10 @@ async def product_type_query(callback: CallbackQuery, bot: Bot):
 async def brand_query(callback: CallbackQuery, bot: Bot):
     _, product_type, brand = callback.data.split('/')
     print(product_type, brand)
-    product_list = products[product_type]['brands'][brand]
+    product_list = filter_by_brand(filter_by_type(products, product_type), brand)
     markup = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=v, callback_data=f'product/{product_type}/{brand}/{i}')]
-        for i, v in enumerate(product_list)])
+        [InlineKeyboardButton(text=i.name, callback_data=f'product/{product_type}/{i.name}')]
+        for i in enumerate(product_list)])
 
     await callback.message.edit_text('Выбери товар', reply_markup=markup)
     await callback.answer()
